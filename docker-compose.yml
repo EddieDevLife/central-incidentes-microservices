@@ -1,0 +1,92 @@
+# Perfil A: tudo roda com Docker.
+#   docker compose up --build
+#
+# Repare: cada serviço tem o SEU banco (abertura-db e triagem-db).
+# Um serviço nunca abre conexão com o banco do outro.
+
+services:
+
+  # ---------- Infraestrutura ----------
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    environment:
+      RABBITMQ_DEFAULT_USER: incidentes
+      RABBITMQ_DEFAULT_PASS: incidentes
+    ports:
+      - "5672:5672"     # fila (AMQP)
+      - "15672:15672"   # painel web: http://localhost:15672
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "-q", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  abertura-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: abertura
+      POSTGRES_USER: abertura
+      POSTGRES_PASSWORD: abertura
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U abertura -d abertura"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  triagem-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: triagem
+      POSTGRES_USER: triagem
+      POSTGRES_PASSWORD: triagem
+    ports:
+      - "5434:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U triagem -d triagem"]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+
+  # ---------- Os dois serviços ----------
+
+  abertura-service:
+    build: ./abertura-service
+    environment:
+      DB_URL: jdbc:postgresql://abertura-db:5432/abertura
+      RABBITMQ_HOST: rabbitmq
+    ports:
+      - "8081:8081"
+    depends_on:
+      abertura-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+  triagem-service:
+    build: ./triagem-service
+    environment:
+      DB_URL: jdbc:postgresql://triagem-db:5432/triagem
+      RABBITMQ_HOST: rabbitmq
+      REDIS_HOST: redis
+    ports:
+      - "8082:8082"
+    depends_on:
+      triagem-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+      redis:
+        condition: service_healthy

@@ -1,0 +1,47 @@
+server:
+  port: 8082
+
+spring:
+  application:
+    name: triagem-service
+
+  # Banco SÓ deste serviço (outro Postgres, outra porta).
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5434/triagem}
+    username: ${DB_USER:triagem}
+    password: ${DB_PASSWORD:triagem}
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:incidentes}
+    password: ${RABBITMQ_PASSWORD:incidentes}
+    listener:
+      simple:
+        # Se o processamento falhar: tenta 3 vezes, esperando 1s, 2s...
+        retry:
+          enabled: true
+          max-attempts: 3
+          initial-interval: 1s
+          multiplier: 2
+        # ...e, se ainda assim falhar, NÃO devolve para a fila (viraria um loop
+        # infinito). A mensagem vai para a DLQ. Ver ADR 0005.
+        default-requeue-rejected: false
+
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: 6379
+      timeout: 2s
+      connect-timeout: 2s
+  cache:
+    type: redis
+
+app:
+  cache:
+    # Por quanto tempo uma regra de SLA fica guardada no cache.
+    regras-sla-ttl-minutos: 10

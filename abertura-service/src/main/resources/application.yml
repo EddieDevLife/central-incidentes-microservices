@@ -1,0 +1,22 @@
+server:
+  port: 8081
+
+spring:
+  application:
+    name: abertura-service
+
+  # Banco SÓ deste serviço. Os valores depois dos ":" valem quando você roda fora do Docker.
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5433/abertura}
+    username: ${DB_USER:abertura}
+    password: ${DB_PASSWORD:abertura}
+  jpa:
+    hibernate:
+      ddl-auto: update   # cria as tabelas sozinho (bom para estudo; em produção seria Flyway)
+    open-in-view: false
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: 5672
+    username: ${RABBITMQ_USER:incidentes}
+    password: ${RABBITMQ_PASSWORD:incidentes}
